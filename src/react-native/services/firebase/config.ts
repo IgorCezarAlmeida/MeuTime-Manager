@@ -1,23 +1,31 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { initializeAuth, getAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore, collection } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Configuração do Firebase para React Native / Android
-// As variáveis podem ser definidas via .env ou app.json (expo.extra)
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY || "AIzaSy_MOCK_API_KEY_MEUTIME",
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || "meutime-manager.firebaseapp.com",
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "meutime-manager",
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || "meutime-manager.appspot.com",
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "123456789012",
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || "1:123456789012:android:abcdef1234567890"
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || 'AIzaSy_MOCK_API_KEY_MEUTIME',
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || 'meutime-manager.firebaseapp.com',
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'meutime-manager',
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || 'meutime-manager.appspot.com',
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '123456789012',
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '1:123456789012:android:abcdef1234567890',
 };
 
 // Inicialização segura Singleton
-export const firebaseApp = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+const isFirstInit = getApps().length === 0;
+export const firebaseApp = isFirstInit ? initializeApp(firebaseConfig) : getApp();
 
-export const auth = getAuth(firebaseApp);
+// Auth com persistência via AsyncStorage (obrigatório para React Native)
+// initializeAuth só pode ser chamado na primeira inicialização
+export const auth = isFirstInit
+  ? initializeAuth(firebaseApp, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    })
+  : getAuth(firebaseApp);
+
 export const db = getFirestore(firebaseApp);
 export const storage = getStorage(firebaseApp);
 
