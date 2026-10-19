@@ -1,0 +1,29 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "partidas",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "timeId", "order": "ASCENDING" },
+        { "fieldPath": "data", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "treinos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "timeId", "order": "ASCENDING" },
+        { "fieldPath": "data", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "presencas",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "timeId", "order": "ASCENDING" },
+        { "fieldPath": "jogadorId", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

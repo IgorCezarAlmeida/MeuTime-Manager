@@ -1,0 +1,119 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Funções Auxiliares de Segurança e Permissões
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    }
+
+    function isCoach() {
+      return isAuthenticated() && getUserData().role == 'tecnico';
+    }
+
+    function isCoachOfTeam(teamId) {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/times/$(teamId)).data.tecnicoUid == request.auth.uid);
+    }
+
+    function isMemberOfTeam(teamId) {
+      return isAuthenticated() && (
+        isCoachOfTeam(teamId) || 
+        getUserData().timeVinculadoId == teamId
+      );
+    }
+
+    // 1. Coleção: usuarios/{uid} (RF01, RF02, RNF08)
+    match /usuarios/{uid} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == uid;
+      allow update: if isOwner(uid);
+      allow delete: if false; // Usuários não são deletados diretamente
+    }
+
+    // 2. Coleção: times/{timeId} (RF03, RF04, RN01, RN02, RN06)
+    match /times/{timeId} {
+      // Qualquer usuário autenticado pode ler para buscar por código de convite ou seu time vinculado
+      allow read: if isAuthenticated();
+      // Apenas técnicos podem criar times
+      allow create: if isCoach() && request.resource.data.tecnicoUid == request.auth.uid;
+      // RN06: Somente o técnico responsável pode alterar ou remover a equipe
+      allow update, delete: if isCoachOfTeam(timeId);
+    }
+
+    // 3. Coleção: jogadores/{jogadorId} (RF05, RF06, RF08, RN03, RN05, RN11, RN12)
+    match /jogadores/{jogadorId} {
+      // RN12: Membros da mesma equipe podem visualizar o elenco
+      allow read: if isAuthenticated() && (
+        resource == null || isMemberOfTeam(resource.data.timeId)
+      );
+      // Somente o técnico da equipe pode cadastrar, editar ou remover atletas
+      allow create: if isAuthenticated() && isCoachOfTeam(request.resource.data.timeId);
+      allow update, delete: if isAuthenticated() && isCoachOfTeam(resource.data.timeId);
+    }
+
+    // 4. Coleção: partidas/{partidaId} (RF10, RF20, RF21, RN06)
+    match /partidas/{partidaId} {
+      allow read: if isAuthenticated() && (
+        resource == null || isMemberOfTeam(resource.data.timeId)
+      );
+      // Somente o técnico pode agendar partidas ou registrar resultados (RN06)
+      allow create: if isAuthenticated() && isCoachOfTeam(request.resource.data.timeId);
+      allow update, delete: if isAuthenticated() && isCoachOfTeam(resource.data.timeId);
+    }
+
+    // 5. Coleção: treinos/{treinoId} (RF11)
+    match /treinos/{treinoId} {
+      allow read: if isAuthenticated() && (
+        resource == null || isMemberOfTeam(resource.data.timeId)
+      );
+      allow create: if isAuthenticated() && isCoachOfTeam(request.resource.data.timeId);
+      allow update, delete: if isAuthenticated() && isCoachOfTeam(resource.data.timeId);
+    }
+
+    // 6. Coleção: escalacoes/{escalacaoId} (RF12, RF16, RN07, RN12)
+    match /escalacoes/{escalacaoId} {
+      // Jogador só pode ler se a escalação estiver publicada (RF16) ou se for o técnico
+      allow read: if isAuthenticated() && (
+        isCoachOfTeam(resource.data.timeId) || 
+        (isMemberOfTeam(resource.data.timeId) && resource.data.publicada == true)
+      );
+      // RN07: Somente o técnico pode salvar ou publicar escalações
+      allow create: if isAuthenticated() && isCoachOfTeam(request.resource.data.timeId);
+      allow update, delete: if isAuthenticated() && isCoachOfTeam(resource.data.timeId);
+    }
+
+    // 7. Coleção: taticas/{taticaId} (RF15, RN13)
+    match /taticas/{taticaId} {
+      allow read: if isAuthenticated() && (
+        resource == null || isMemberOfTeam(resource.data.timeId)
+      );
+      allow create: if isAuthenticated() && isCoachOfTeam(request.resource.data.timeId);
+      allow update, delete: if isAuthenticated() && isCoachOfTeam(resource.data.timeId);
+    }
+
+    // 8. Coleção: presencas/{presencaId} (RF17, RF18, RF19, RN08)
+    match /presencas/{presencaId} {
+      allow read: if isAuthenticated() && (
+        resource == null || isMemberOfTeam(resource.data.timeId)
+      );
+      // Técnico pode gerenciar presenças, ou jogador pode registrar SUA PRÓPRIA presença
+      allow create, update: if isAuthenticated() && (
+        isCoachOfTeam(request.resource.data.timeId) || 
+        (
+          isMemberOfTeam(request.resource.data.timeId) &&
+          (getUserData().jogadorVinculadoId == request.resource.data.jogadorId || request.auth.uid == request.resource.data.jogadorId)
+        )
+      );
+      allow delete: if isAuthenticated() && isCoachOfTeam(resource.data.timeId);
+    }
+  }
+}

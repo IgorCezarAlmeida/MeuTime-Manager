@@ -1,0 +1,6 @@
+{
+  "name": "MeuTime Manager",
+  "description": "Plataforma de gestão de equipes esportivas amadoras: controle de elenco, escalações táticas interativas, calendário e presença para futebol, futsal e basquete.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
